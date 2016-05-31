@@ -1,4 +1,5 @@
 require 'optparse'
+require 'tempfile'
 
 Version = "0.1.0"
 options = {}
@@ -33,16 +34,48 @@ resource_dir_path = options.key?(:resource_dir_path) ? options[:resource_dir_pat
 # construct path to default string resource file
 default_string_resource_file = File.join(resource_dir_path, "values", "strings.xml")
 # get list of value directories
-string_resource_files = []
+value_dirs = []
 if (File.exists? default_string_resource_file)
-  string_resource_files = Dir.entries(resource_dir_path).select {|entry| File.directory? File.join(resource_dir_path, entry) and entry.start_with? "values-" and File.exists? File.join(resource_dir_path, entry, "strings.xml")}
+  value_dirs = Dir.entries(resource_dir_path).select {|entry| File.directory? File.join(resource_dir_path, entry) and entry.start_with? "values-" and File.exists? File.join(resource_dir_path, entry, "strings.xml")}
 else
   puts "No default string resource file found at %s" %[default_string_resource_file]
 end
 # get list of translations
-puts default_string_resource_file
+default_translations = []
 File.open(default_string_resource_file).each_line do |line|
   if line =~ /<string name=/
-    puts /<string name=['"](.*)['"]>/.match(line)[1]
+    default_translations << /<string name=['"](.*)['"]>/.match(line)[1]
   end
+end
+# iterate through non-default string resource files and remove extra translations
+num_translations_removed_total = 0
+removed_translations_print_outs = []
+value_dirs.each do |value_dir|
+  num_translations_removed = 0
+  file_path = File.join(resource_dir_path, value_dir, "strings.xml")
+  temp_file = Tempfile.new('strings.xml')
+  File.open(file_path).each_line do |line|
+    if line =~ /<string name=/ and !default_translations.include? /<string name=['"](.*)['"]>/.match(line)[1]
+      print_out = "Deleting extra translation: %s" %[line]
+      num_translations_removed += 1
+      num_translations_removed_total += 1
+    else
+      temp_file.write(line)
+    end
+  end
+  temp_file.rewind
+  temp_file.read
+  temp_file.close
+  FileUtils.mv temp_file, file_path
+  temp_file.unlink
+  if num_translations_removed > 0
+    print_out = "\nRemoved %s translations from %s" %[num_translations_removed, file_path]
+    removed_translations_print_outs << print_out
+  end
+end
+puts removed_translations_print_outs
+if num_translations_removed_total > 0
+  puts "\nSuccessfully removed %s extra translations!" %[num_translations_removed_total]
+else
+  puts "\nNo extra translations to remove."
 end
