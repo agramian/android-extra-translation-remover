@@ -2,6 +2,8 @@ require 'optparse'
 
 Version = "0.1.0"
 options = {}
+
+# parse options
 OptionParser.new do |opts|
   opts.banner = """
 Description:  Script to remove extra translations from an Android project.
@@ -26,6 +28,14 @@ Usage: android-extra-translation-remover.rb [OPTIONS]"""
   end
 end.parse!
 
-p options
-p ARGV
-p options[:resource_dir_path]
+# set resource_dir_path from option or as current directory
+resource_dir_path = options.key?(:resource_dir_path) ? options[:resource_dir_path] : Dir.pwd
+# construct path to default string resource file
+default_string_resource_file = File.join(resource_dir_path, "values", "strings.xml")
+# get list of value directories
+string_resource_files = []
+if (File.exists? default_string_resource_file)
+  string_resource_files = Dir.entries(resource_dir_path).select {|entry| File.directory? File.join(resource_dir_path, entry) and entry.start_with? "values-" and File.exists? File.join(resource_dir_path, entry, "strings.xml")}
+else
+  puts "No default string resource file found at %s" %[default_string_resource_file]
+end
