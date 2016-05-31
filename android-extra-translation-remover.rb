@@ -39,3 +39,10 @@ if (File.exists? default_string_resource_file)
 else
   puts "No default string resource file found at %s" %[default_string_resource_file]
 end
+# get list of translations
+puts default_string_resource_file
+File.open(default_string_resource_file).each_line do |line|
+  if line =~ /<string name=/
+    puts /<string name=['"](.*)['"]>/.match(line)[1]
+  end
+end
